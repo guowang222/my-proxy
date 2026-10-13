@@ -1,0 +1,17 @@
+{
+  "name": "my-proxy",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "web-proxy",
+      "onAutoForward": "public"
+    }
+  },
+  "postCreateCommand": "cd proxy && npm install && cd .. && nohup node proxy/server.js > /tmp/proxy.log 2>&1 &",
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["frontend/index.html"]
+    }
+  }
+}

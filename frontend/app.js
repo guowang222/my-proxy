@@ -18,6 +18,7 @@ const configBtn = document.getElementById('config-btn');
 const configPanel = document.getElementById('config-panel');
 const proxyInput = document.getElementById('proxy-input');
 const saveProxyBtn = document.getElementById('save-proxy-btn');
+const proxyStatus = document.getElementById('proxy-status');
 const frame = document.getElementById('proxy-frame');
 const errorOverlay = document.getElementById('error-overlay');
 const errorMsg = document.getElementById('error-msg');
@@ -32,9 +33,53 @@ function buildProxyUrl(targetUrl) {
   return `${base}/proxy?url=${encodeURIComponent(targetUrl)}`;
 }
 
+// 探测当前 Codespace 的 3000 端口转发地址。
+// Codespaces 会把 Codespace 名注入到 window.csgo / 环境变量，
+// 拼出的域名形如 <name>-3000.app.github.dev
+async function autoDetectProxy() {
+  const candidates = [];
+
+  // 1) 同源推断：若本页面正好由 xxx-3000.app.github.dev 提供，直接用它
+  if (/\-\d+\.app\.github\.dev$/.test(location.hostname)) {
+    candidates.push(location.origin);
+  }
+
+  // 2) Codespaces 注入的全局变量
+  try {
+    const cs = window.csgo || window.Codespaces || null;
+    const name = cs?.codespaceName || cs?.name;
+    if (name) candidates.push(`https://${name}-3000.app.github.dev`);
+  } catch {}
+
+  // 3) 端口转发地址通常出现在 DOM 的链接里
+  try {
+    document.querySelectorAll('a[href*="app.github.dev"]').forEach((a) => {
+      try {
+        const u = new URL(a.href);
+        if (/-3000\./.test(u.hostname)) candidates.push(u.origin);
+      } catch {}
+    });
+  } catch {}
+
+  for (const c of [...new Set(candidates)]) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000);
+      const r = await fetch(`${c}/health`, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.ok) {
+        const j = await r.json();
+        if (j && j.status === 'ok') return c;
+      }
+    } catch {}
+  }
+  return null;
+}
+
 function showProxyConfig() {
   configPanel.classList.remove('hidden');
   proxyInput.value = proxyOrigin;
+  proxyInput.placeholder = '留空则自动探测';
   proxyInput.focus();
 }
 
@@ -42,12 +87,25 @@ function hideProxyConfig() {
   configPanel.classList.add('hidden');
 }
 
-function saveProxy() {
+async function saveProxy() {
   const val = proxyInput.value.trim().replace(/\/$/, '');
+
+  // 留空 = 自动探测
   if (!val) {
-    alert('请输入代理服务器地址');
+    proxyStatus.textContent = '正在探测…';
+    const found = await autoDetectProxy();
+    if (found) {
+      proxyOrigin = found;
+      localStorage.setItem(STORAGE_PROXY, found);
+      proxyStatus.textContent = `已自动探测到：${found}`;
+      setTimeout(hideProxyConfig, 900);
+      if (urlInput.value.trim()) navigate(urlInput.value.trim());
+      return;
+    }
+    proxyStatus.textContent = '自动探测失败，请手动填写地址';
     return;
   }
+
   try {
     new URL(val);
   } catch {
@@ -57,6 +115,7 @@ function saveProxy() {
   proxyOrigin = val;
   localStorage.setItem(STORAGE_PROXY, val);
   hideProxyConfig();
+  if (urlInput.value.trim()) navigate(urlInput.value.trim());
 }
 
 // ===== Navigation =====
@@ -206,6 +265,17 @@ renderBookmarks();
 
 if (!proxyOrigin) {
   showProxyConfig();
+  proxyStatus.textContent = '正在自动探测…';
+  autoDetectProxy().then((found) => {
+    if (found) {
+      proxyOrigin = found;
+      localStorage.setItem(STORAGE_PROXY, found);
+      hideProxyConfig();
+      if (history.length > 0 && historyIndex >= 0) navigate(history[historyIndex], false);
+    } else {
+      proxyStatus.textContent = '自动探测失败，请手动填写';
+    }
+  });
 }
 
 // If history exists, load last page
