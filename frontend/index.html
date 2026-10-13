@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Proxy Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="toolbar">
+    <button id="back-btn" title="后退">&#8592;</button>
+    <button id="forward-btn" title="前进">&#8594;</button>
+    <button id="reload-btn" title="刷新">&#8635;</button>
+    <input type="text" id="url-input" placeholder="输入网址，如 https://www.google.com" autocomplete="off">
+    <button id="go-btn">Go</button>
+    <button id="config-btn" title="代理设置">&#9881;</button>
+  </div>
+
+  <div id="config-panel" class="hidden">
+    <label>代理服务器地址</label>
+    <input type="text" id="proxy-input" placeholder="https://your-codespace-3000.app.github.dev">
+    <button id="save-proxy-btn">保存</button>
+    <p class="hint">填入 Codespace 端口转发地址（格式：https://xxx-3000.app.github.dev）</p>
+  </div>
+
+  <div id="bookmarks-bar">
+    <span class="bookmarks-label">常用:</span>
+    <div id="bookmarks-list"></div>
+    <button id="add-bookmark-btn" title="添加当前页">+</button>
+  </div>
+
+  <iframe id="proxy-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+
+  <div id="error-overlay" class="hidden">
+    <div class="error-card">
+      <h2>&#9888; 无法加载</h2>
+      <p id="error-msg"></p>
+      <p class="hint">请检查代理服务器是否已启动，以及地址是否正确。</p>
+      <button id="error-config-btn">配置代理地址</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
